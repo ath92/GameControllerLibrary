@@ -1,7 +1,9 @@
 package  com.disastroids.gamecontrollerlibrary;
 
 /**
- * Created by Daniel on 02/10/2016.
+ * InpuMethod for orientation. Implements both inputMethod and SensorEventListener.
+ * Some code to deal with angles and matrices done by Keith Platfoot - https://github.com/kplatfoot/android-rotation-sensor-sample
+ *
  */
 
 import android.hardware.SensorEventListener;
@@ -15,17 +17,33 @@ import android.view.WindowManager;
 
 public class OrientationInput implements InputMethod, SensorEventListener  {
 
-
+    /**
+     * needed to get the rotation.
+     */
     private WindowManager windowManager;
+    /**
+     * needed to get the rotation.
+     */
     private SensorManager sensorManager;
 
+    /**
+     * the actual rotation sensor.
+     */
     @Nullable
     private Sensor rotationSensor;
-
+    /**
+     * only track the rotation if the sensor data is accurate enough.
+     */
     private int lastAccuracy;
-
+    /*
+    variables for pitch and roll.
+     */
     private float pitch, roll;
 
+    /**
+     * constructor. Sets up some general variables so we can read the sensor.
+     * @param activity
+     */
     public OrientationInput(Activity activity) {
         windowManager = activity.getWindow().getWindowManager();
         sensorManager = (SensorManager) activity.getSystemService(Activity.SENSOR_SERVICE);
@@ -34,20 +52,32 @@ public class OrientationInput implements InputMethod, SensorEventListener  {
         rotationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
     }
 
+    /**
+     * add listener for the rotationSensor.
+     */
     public void startListening() {
         if (rotationSensor == null) {
-            //LogUtil.w("Rotation vector sensor not available; will not provide orientation data.");
             return;
         }
         sensorManager.registerListener(this, rotationSensor, 50*1000);
     }
 
+    /**
+     * when accuracy changes, make sure it's not too low.
+     * @param sensor the sensor to be checked.
+     * @param accuracy accuracy integer that is injected into the params.
+     */
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
         if (lastAccuracy != accuracy) {
             lastAccuracy = accuracy;
         }
     }
+
+    /**
+     * When the sensor gives us a new value, check if the value is accurate. If so, use it to update our variables.
+     * @param event the SensorEvent to work with.
+     */
 
     @Override
     public void onSensorChanged(SensorEvent event) {
@@ -59,6 +89,12 @@ public class OrientationInput implements InputMethod, SensorEventListener  {
         }
     }
 
+    /**
+     * when the orientation has changed, this function is called. It uses the sensor data to compute workable values:
+     * angles that represent the pitch and roll. These are a little easier to work with for anyone implementing things
+     * on the game end.
+     * @param rotationVector
+     */
     @SuppressWarnings("SuspiciousNameCombination")
     private void updateOrientation(float[] rotationVector) {
         float[] rotationMatrix = new float[9];
@@ -67,8 +103,6 @@ public class OrientationInput implements InputMethod, SensorEventListener  {
         final int worldAxisForDeviceAxisX;
         final int worldAxisForDeviceAxisY;
 
-        // Remap the axes as if the device screen was the instrument panel,
-        // and adjust the rotation matrix for the device orientation.
         switch (windowManager.getDefaultDisplay().getRotation()) {
             case Surface.ROTATION_0:
             default:
@@ -93,14 +127,17 @@ public class OrientationInput implements InputMethod, SensorEventListener  {
         SensorManager.remapCoordinateSystem(rotationMatrix, worldAxisForDeviceAxisX,
                 worldAxisForDeviceAxisY, adjustedRotationMatrix);
 
-        // Transform rotation matrix into azimuth/pitch/roll
         float[] orientation = new float[3];
         SensorManager.getOrientation(adjustedRotationMatrix, orientation);
 
-        // Convert radians to degrees
         pitch = orientation[1] * -57;
         roll = orientation[2] * -57;
     }
+
+    /**
+     * Serialize the data. Puts the latest pitch and roll in a nice JSON object.
+     * @return String of package.
+     */
 
     public String serialize() {
         String strSerialized;

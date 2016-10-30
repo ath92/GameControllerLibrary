@@ -1,7 +1,7 @@
 package  com.disastroids.gamecontrollerlibrary;
 
 /**
- * Created by Daniel on 05/10/2016.
+ * inerface for all inputMethods. Fairly empty, just specifies that every InputMethod should have a serialze() method.
  */
 public interface InputMethod {
 
